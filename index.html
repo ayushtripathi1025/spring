@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring Atlas</title>
+<meta name="description" content="A personal knowledge map for Java and Spring Boot backend engineering.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23161a17'/%3E%3Cpath d='M8 22 14 10l4 8 6-10' fill='none' stroke='%23d9a441' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='8' cy='22' r='2.2' fill='%238fbf8f'/%3E%3Ccircle cx='24' cy='8' r='2.2' fill='%238fbf8f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#tree">Skip to syllabus</a>
+
+<header class="top" id="top">
+  <div class="top-row">
+    <div class="brand">
+      <h1>Spring Atlas</h1>
+      <p class="tagline">Java + Spring Boot knowledge map</p>
+      <p id="syncStatus" class="sync-status" role="status" aria-live="polite">Loading cloud data…</p>
+    </div>
+
+    <div class="overall" aria-live="polite">
+      <div class="pct"><span id="pct">0</span><small>%</small></div>
+      <div class="meter-wrap">
+        <div class="meter" role="progressbar" aria-label="Overall progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="meter"><span id="meterFill"></span></div>
+        <p class="counters" id="counters"></p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn" id="randomBtn" title="Open a random topic you haven't learned">Surprise me</button>
+      <details class="menu">
+        <summary class="btn ghost">Data</summary>
+        <div class="menu-pop">
+          <button type="button" id="exportBtn">Export JSON backup</button>
+          <button type="button" id="importBtn">Import JSON backup</button>
+          <button type="button" id="exportPdfBtn">Export notes to PDF</button>
+          <button type="button" id="resetBtn" class="danger">Reset all progress</button>
+        </div>
+      </details>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </div>
+
+  <div class="tools">
+    <label class="search">
+      <span class="sr">Search topics</span>
+      <input type="search" id="search" placeholder="Search title, alias, section, tag or id…" autocomplete="off">
+    </label>
+    <button type="button" class="btn ghost" id="filterToggle" aria-expanded="false" aria-controls="filters">Filters <span id="filterCount" class="pill" hidden></span></button>
+  </div>
+
+  <form class="filters" id="filters" hidden>
+    <label>Importance
+      <select id="fImportance"><option value="">Any</option></select>
+    </label>
+    <label>Difficulty
+      <select id="fDifficulty"><option value="">Any</option></select>
+    </label>
+    <label>Status
+      <select id="fStatus"><option value="">Any</option></select>
+    </label>
+    <label>Readiness
+      <select id="fReady">
+        <option value="">Any</option>
+        <option value="ready">Ready (prereqs learned)</option>
+        <option value="partial">Partially ready</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="fCore30"> Core 30 only</label>
+    <button type="button" class="btn ghost" id="clearFilters">Clear</button>
+  </form>
+</header>
+
+<main>
+  <section class="atlas" aria-labelledby="atlasH">
+    <div class="atlas-head">
+      <h2 id="atlasH">Territories</h2>
+      <p class="muted">Each tile is a section. Progress counts unique concepts, so shared topics are never counted twice.</p>
+    </div>
+    <ul class="tiles" id="tiles"></ul>
+  </section>
+
+  <section class="syllabus" aria-labelledby="treeH">
+    <div class="syl-head">
+      <h2 id="treeH">Syllabus</h2>
+      <div class="syl-actions">
+        <span class="muted" id="resultInfo"></span>
+        <button type="button" class="btn ghost small" id="expandAll">Expand all</button>
+        <button type="button" class="btn ghost small" id="collapseAll">Collapse all</button>
+      </div>
+    </div>
+    <div id="tree" tabindex="-1"><p class="muted">Loading syllabus…</p></div>
+  </section>
+</main>
+
+<dialog id="detail" aria-labelledby="dTitle">
+  <article class="detail" id="detailBody"></article>
+</dialog>
+
+<dialog id="migrationDialog" aria-labelledby="migrationTitle">
+  <article class="utility-dialog">
+    <div class="utility-head"><h2 id="migrationTitle">Review local data</h2><button type="button" class="btn ghost small" data-keep-local>Keep local for now</button></div>
+    <p id="migrationSummary">Local data was found. Review it before syncing.</p>
+    <p id="migrationCounts" class="muted"></p>
+    <p class="muted small-t">A dated local backup is saved before importing. Your original browser data is retained.</p>
+    <div class="utility-actions">
+      <button type="button" class="btn ghost" id="migrationBackupBtn">Download backup first</button>
+      <button type="button" class="btn ghost" id="migrationMergeBtn">Merge local-only items</button>
+      <button type="button" class="btn" id="migrationReplaceBtn">Replace cloud with local</button>
+    </div>
+    <p id="migrationResult" class="muted" aria-live="polite"></p>
+  </article>
+</dialog>
+
+<dialog id="importPreviewDialog" aria-labelledby="importPreviewTitle">
+  <article class="utility-dialog">
+    <div class="utility-head"><h2 id="importPreviewTitle">Import backup preview</h2><button type="button" class="btn ghost small" data-import-cancel>Cancel</button></div>
+    <p id="importPreviewSummary"></p>
+    <p id="importPreviewCounts" class="muted"></p>
+    <p class="muted small-t">Merge adds items only when the destination is missing that concept; destination values win conflicts. Replace requires a backup and overwrites all current progress and notes.</p>
+    <div class="utility-actions">
+      <button type="button" class="btn ghost" id="importMergeBtn">Merge backup</button>
+      <button type="button" class="btn" id="importReplaceBtn">Replace current data</button>
+    </div>
+  </article>
+</dialog>
+
+<dialog id="noteConflictDialog" aria-labelledby="noteConflictTitle">
+  <article class="utility-dialog">
+    <div class="utility-head"><h2 id="noteConflictTitle">This note changed elsewhere</h2><button type="button" class="btn ghost small" data-conflict-dismiss>Keep my draft</button></div>
+    <p id="noteConflictSummary">Your unsaved draft is safe on this device. Choose how to resolve this conflict.</p>
+    <div class="utility-actions">
+      <button type="button" class="btn ghost" id="noteConflictDownloadBtn">Download my draft copy</button>
+      <button type="button" class="btn ghost" id="noteConflictCloudBtn">Use cloud version</button>
+      <button type="button" class="btn" id="noteConflictOverwriteBtn">Overwrite cloud with my draft</button>
+    </div>
+  </article>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
